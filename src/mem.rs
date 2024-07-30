@@ -14,6 +14,12 @@ pub struct MemResp<const WIDTH: usize> {
   pub rdata: [u8; WIDTH],
 }
 
+impl<const WIDTH: usize> crate::crossbar::Routable<u64> for MemReq<WIDTH> {
+  fn addr(&self) -> u64 {
+    self.addr
+  }
+}
+
 pub trait DelaySimulator {
   fn tick(&mut self);
   fn push(&mut self, addr: u64, is_write: bool);
