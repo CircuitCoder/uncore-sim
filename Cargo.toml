@@ -2,6 +2,9 @@
 name = "uncore-sim"
 version = "0.1.0"
 edition = "2021"
+description = "Simulation utilities for SoC uncore testing"
+license = "MIT"
+repository = "https://github.com/CircuitCoder/uncore-sim"
 
 [dependencies]
 dramsim3 = "0.1.1"
