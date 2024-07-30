@@ -72,7 +72,7 @@ impl<const WIDTH: usize> Progress<WIDTH> {
       sent: 0,
       recv: 0,
       is_write,
-    }).is_some());
+    }).is_none());
   }
 
   fn step(&mut self, addr: u64) {
@@ -205,4 +205,72 @@ impl<D: DelaySimulator, const WIDTH: usize> Drain for Mem<D, WIDTH> {
       }
     })
   }
+}
+
+#[test]
+fn test_simple_sram() {
+  let mem: Mem<_, 256> = Mem::new(NoDelay::default());
+  test_simple(mem, 1);
+}
+
+#[test]
+fn test_simple_dram() {
+  let mut cfg = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+  cfg.push("resources/test/DDR4_8Gb_x16_3200.ini");
+
+  let tmpdir = tempfile::tempdir().unwrap();
+
+  let dramsim: DRAMSim<256> = DRAMSim::new(cfg, &tmpdir);
+  let mem: Mem<_, 256> = Mem::new(dramsim);
+  test_simple(mem, 20);
+}
+
+#[cfg(test)]
+fn test_simple<D: DelaySimulator>(mut mem: Mem<D, 256>, wait: usize) {
+  use rand::Rng;
+
+  let mut rng = rand::thread_rng();
+  let mut buf = [0; 256];
+  rng.fill(&mut buf);
+
+  mem.tick();
+  mem.push(MemReq {
+    id: 1,
+    addr: 0x80004000,
+    wbe: [true; 256],
+    wdata: buf.clone(),
+  });
+
+  let mut done = false;
+  for t in 0..wait {
+    if let Some(r) = mem.pop() {
+      assert_eq!(r.id, 1);
+      done = true;
+      println!("Done at tick {}", t);
+      break;
+    }
+    mem.tick();
+  }
+  assert!(done);
+
+  mem.tick();
+  mem.push(MemReq {
+    id: 2,
+    addr: 0x80004000,
+    wbe: [false; 256],
+    wdata: [0; 256],
+  });
+
+  let mut done = false;
+  for t in 0..wait {
+    if let Some(r) = mem.pop() {
+      assert_eq!(r.id, 2);
+      assert_eq!(r.rdata, buf);
+      println!("Done at tick {}", t);
+      done = true;
+      break;
+    }
+    mem.tick();
+  }
+  assert!(done);
 }
